@@ -41,11 +41,6 @@ export interface VeloraLaunchOptions extends BrowserConnectOptions {
   veloraApi?: string;
   /** Optional API key (`Authorization: Bearer`). */
   apiKey?: string;
-  /**
-   * Built-in Velora browser (`browser/velora.json`), no antidetect fingerprint.
-   * Uses profile folder `Default`; ignores `profileId`, API, and snapshot options.
-   */
-  useDefaultProfile?: boolean;
   /** CDP port (default: auto free port). */
   port?: number;
   /** Path to velora binary. */
@@ -256,20 +251,11 @@ export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<L
   let userDataDir = options.userDataDir;
   let profileSnapshot: string | undefined;
 
-  const veloraApi = options.veloraApi ?? process.env.VELORA_API_URL;
-  const profileId = options.useDefaultProfile
-    ? undefined
-    : (options.profileId ?? process.env.VELORA_PROFILE_ID);
+  const profileId = options.profileId;
+  const veloraApi = options.veloraApi ?? (profileId ? process.env.VELORA_API_URL : undefined);
   const apiKey = options.apiKey ?? process.env.VELORA_API_KEY;
 
-  if (options.useDefaultProfile) {
-    profile = options.profile ?? "Default";
-    const veloraJson = join(dataRoot, "browser/velora.json");
-    if (!existsSync(veloraJson)) {
-      throw new ProtocolError(`Default profile not found: ${veloraJson}`);
-    }
-    profileSnapshot = veloraJson;
-  } else if (profileId) {
+  if (profileId) {
     if (!veloraApi) {
       throw new ProtocolError("profileId requires veloraApi (or VELORA_API_URL)");
     }
@@ -281,7 +267,11 @@ export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<L
     profile = profileId;
     userDataDir = hydrated.userDataDir;
     profileSnapshot = hydrated.snapshotDir;
-  } else {
+  } else if (
+    options.profileSnapshot
+    || options.profileBundle
+    || options.templateRef
+  ) {
     profileSnapshot = resolveProfileSnapshot({
       dataRoot,
       profile,
@@ -290,6 +280,13 @@ export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<L
       profileBundle: options.profileBundle,
       templateRef: options.templateRef,
     });
+  } else {
+    profile = profile ?? "Default";
+    const veloraJson = join(dataRoot, "browser/velora.json");
+    if (!existsSync(veloraJson)) {
+      throw new ProtocolError(`Default profile not found: ${veloraJson}`);
+    }
+    profileSnapshot = veloraJson;
   }
 
   const args = ["serve", "--host", host, "--port", String(port)];
