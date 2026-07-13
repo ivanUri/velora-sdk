@@ -71,3 +71,7 @@ export { createDeferred } from "./utils/deferred.js";
 export type { Deferred } from "./utils/deferred.js";
 export { Logger } from "./utils/logger.js";
 export type { LoggerOption, LoggerSink, LogEntry } from "./utils/logger.js";
+
+export { fetch } from "./fetch.js";
+export type { FetchFormat, FetchOptions, FetchResult } from "./fetch.js";
+export { defaultUserDataDir, profileCookiesPath } from "./profile-paths.js";

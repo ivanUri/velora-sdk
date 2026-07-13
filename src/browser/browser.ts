@@ -24,8 +24,9 @@ export class Browser {
   }
 
   /**
-   * Spawn a Velora server with antidetect profile/cookies and connect over CDP.
-   * Requires `zig-out/bin/velora` (run `zig build` first).
+   * Spawn `velora serve` and connect over CDP.
+   * Resolves binary from Homebrew, `$VELORA_BIN`, or Desktop/velora dev build.
+   * Pass `profile` for `--browser-profile` (Chrome-style user-data-dir folder).
    */
   static async launch(options: VeloraLaunchOptions = {}): Promise<LaunchedVelora> {
     return launchVelora(options);

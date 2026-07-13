@@ -1,25 +1,19 @@
 #!/usr/bin/env node
-import { writeFile } from "node:fs/promises";
-import { Browser } from "../browser/browser.js";
+import { fetch, type FetchFormat } from "../fetch.js";
 
-interface Options {
-  endpoint: string;
-  url?: string;
-  output?: string;
-  waitUntil: "none" | "commit" | "domcontentloaded" | "load" | "networkidle";
-  timeout: number;
-  logger: boolean;
-  extract: boolean;
-}
-
-function parseArgs(argv: string[]): Options {
-  const options: Options = {
-    endpoint: process.env.VELORA_CDP || "http://127.0.0.1:9222",
-    waitUntil: "domcontentloaded",
-    timeout: 30_000,
-    logger: false,
-    extract: false,
-  };
+function parseArgs(argv: string[]) {
+  let url: string | undefined;
+  let format: FetchFormat = "html";
+  let launch = false;
+  let output: string | undefined;
+  let endpoint = process.env.VELORA_CDP;
+  let waitUntil: "none" | "commit" | "domcontentloaded" | "load" | "networkidle" | "done" = "domcontentloaded";
+  let timeout = 30_000;
+  let logger = false;
+  let profile: string | undefined;
+  let userDataDir: string | undefined;
+  let dataRoot: string | undefined;
+  let logLevel: string | undefined;
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -29,50 +23,69 @@ function parseArgs(argv: string[]): Options {
       return argv[i];
     };
     switch (arg) {
-      case "--endpoint": options.endpoint = next(); break;
-      case "--output": options.output = next(); break;
-      case "--wait-until": options.waitUntil = next() as Options["waitUntil"]; break;
-      case "--timeout": options.timeout = Number(next()); break;
-      case "--logger": options.logger = true; break;
-      case "--extract": options.extract = true; break;
+      case "--endpoint": endpoint = next(); break;
+      case "-o":
+      case "--output": output = next(); break;
+      case "--wait-until": waitUntil = next() as typeof waitUntil; break;
+      case "--timeout": timeout = Number(next()); break;
+      case "--logger": logger = true; break;
+      case "--launch": launch = true; break;
+      case "--profile":
+      case "--browser-profile": profile = next(); break;
+      case "--user-data-dir": userDataDir = next(); break;
+      case "--data-root":
+      case "--velora-root": dataRoot = next(); break;
+      case "--log-level": logLevel = next(); break;
+      case "--format": {
+        const fmt = next();
+        if (fmt === "html" || fmt === "md" || fmt === "markdown" || fmt === "json") {
+          format = fmt === "markdown" ? "md" : fmt;
+        } else {
+          throw new Error(`Unknown format: ${fmt}`);
+        }
+        break;
+      }
+      case "--md":
+      case "--markdown": format = "md"; break;
+      case "--html": format = "html"; break;
+      case "--json":
+      case "--extract": format = "json"; break;
       case "--help": usage(0); break;
       default:
         if (arg.startsWith("--")) throw new Error(`Unknown option: ${arg}`);
-        options.url = arg;
+        url = arg;
     }
   }
-  if (!options.url) usage(1);
-  return options;
+  if (!url) usage(1);
+  return { url, format, launch, output, endpoint, waitUntil, timeout, logger, profile, userDataDir, dataRoot, logLevel };
 }
 
 function usage(exitCode: number): never {
   console.error(`Usage: velora-fetch <url> [options]
 
-Options:
-  --endpoint <url>       CDP HTTP or WebSocket endpoint (default: VELORA_CDP or http://127.0.0.1:9222)
-  --wait-until <mode>    none | commit | domcontentloaded | load | networkidle (default: domcontentloaded)
-  --timeout <ms>         Navigation timeout (default: 30000)
-  --output <path>        Write output to file instead of stdout
-  --extract              Print JSON extract payload instead of HTML
-  --logger               Print protocol logs
+  velora-fetch https://example.com --launch -o page.html
+  velora-fetch https://example.com --launch --md -o page.md
+  velora-fetch https://example.com --launch --profile chrome-local-huys-macbook-pro
 `);
   process.exit(exitCode);
 }
 
 async function main(): Promise<void> {
-  const options = parseArgs(process.argv.slice(2));
-  const browser = await Browser.connect(options.endpoint, { logger: options.logger });
-  try {
-    const page = await browser.newPage();
-    await page.goto(options.url!, { waitUntil: options.waitUntil, timeout: options.timeout });
-    const payload = options.extract
-      ? JSON.stringify(await page.extract({ timeout: options.timeout }), null, 2)
-      : await page.content();
-    if (options.output) await writeFile(options.output, payload);
-    else process.stdout.write(payload);
-  } finally {
-    await browser.close();
-  }
+  const args = parseArgs(process.argv.slice(2));
+  const result = await fetch(args.url, {
+    format: args.format,
+    launch: args.launch,
+    endpoint: args.endpoint,
+    waitUntil: args.waitUntil,
+    timeout: args.timeout,
+    logger: args.logger,
+    output: args.output,
+    profile: args.profile,
+    userDataDir: args.userDataDir,
+    dataRoot: args.dataRoot,
+    logLevel: args.logLevel,
+  });
+  if (!args.output) process.stdout.write(result.body);
 }
 
 main().catch((error) => {

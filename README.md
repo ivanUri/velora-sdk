@@ -8,7 +8,8 @@ Desktop/
   velora-sdk/   # this repo (@velora/sdk)
 ```
 
-Set `VELORA_ROOT` to the engine path if layouts differ. `Browser.launch()` spawns `velora serve` from that tree.
+Set `VELORA_ROOT` / `VELORA_DATA` to the engine install path (templates in `browser/templates/`).
+`Browser.launch()` resolves the `velora` binary from Homebrew, `$VELORA_BIN`, or `~/Desktop/velora/zig-out/bin/velora`.
 
 TypeScript-first; talks directly to Chrome DevTools Protocol over WebSocket. No Playwright or Puppeteer internals.
 
@@ -43,19 +44,27 @@ Velora adds an **LP CDP domain** and **agent-oriented APIs** for AI automation a
 
 ### Launch with antidetect profile
 
+Velora uses a Chrome-style **user-data-dir** for session state (cookies, localStorage, cache).
+Fingerprint **templates** stay read-only under the engine install (`browser/templates/`).
+
 ```ts
-import { Browser } from "@velora/sdk";
+import { Browser, defaultUserDataDir, profileCookiesPath } from "@velora/sdk";
 
 const launched = await Browser.launch({
-  profile: "chrome-local-huys-macbook-pro",
-  cookieJar: "browser/profiles/sessions/my-session-cookies.json",
+  profile: "chrome-local-huys-macbook-pro", // --browser-profile folder name
+  userDataDir: defaultUserDataDir(),        // optional; macOS default shown
 });
 const page = await launched.browser.newPage();
+// Cookies persist to profileCookiesPath(defaultUserDataDir(), launched.profile!)
 // ...
 await launched.close();
 ```
 
-Profiles bundle UA, Sec-CH-UA, canvas/audio/WebGL probes, fonts, and cookie seeds — see `browser/profiles/`.
+On first launch, Velora creates `~/Library/Application Support/velora/<profile>/` with
+`Preferences.json` pointing at the fingerprint template (e.g. `chrome-local-huys-macbook-pro`).
+
+Templates bundle UA, Sec-CH-UA, canvas/audio/WebGL probes, fonts, and maths baselines —
+see `browser/templates/` in the Velora engine repo.
 
 ### AI extraction (token-efficient)
 
@@ -171,7 +180,10 @@ await page.evaluate("prompt('Name?')");
 
 | API | Description |
 |-----|-------------|
-| `Browser.launch()` | Spawn Velora with `--browser-profile` / `--cookie-jar` |
+| `Browser.launch()` | Spawn Velora with `--browser-profile`, `--user-data-dir`, `--cookie-jar` |
+| `defaultUserDataDir()` | OS default user-data-dir path |
+| `profileCookiesPath()` | `Cookies.json` path for a named profile |
+| `fetch()` | Programmatic `velora-fetch` (html / md / json) |
 | `page.agent` / `LPClient` | Low-level `LP.*` CDP namespace |
 | `page.markdown()` | Token-efficient page text |
 | `page.semanticTree()` | Pruned a11y DOM for LLMs |
@@ -208,6 +220,9 @@ await page.evaluate("prompt('Name?')");
 ```bash
 # HTML (default wait: domcontentloaded)
 VELORA_CDP=http://127.0.0.1:9222 npx velora-fetch https://example.com
+
+# Launch with antidetect profile
+npx velora-fetch https://example.com --launch --profile chrome-local-huys-macbook-pro
 
 # Structured extract (JSON)
 VELORA_CDP=http://127.0.0.1:9222 npx velora-fetch https://en.wikipedia.org/wiki/Earth --extract

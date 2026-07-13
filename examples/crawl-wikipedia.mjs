@@ -105,9 +105,14 @@ async function main() {
       if (!existsSync(resolve(VELORA_ROOT, "zig-out/bin/velora"))) {
         throw new Error(`run zig build in Velora engine first (${VELORA_ROOT})`);
       }
-      launched = await Browser.launch({ profile: args.profile, logLevel: "warn", repoRoot: VELORA_ROOT });
+      launched = await Browser.launch({
+        profile: args.profile,
+        dataRoot: VELORA_ROOT,
+        binary: resolve(VELORA_ROOT, "zig-out/bin/velora"),
+        logLevel: "warn",
+      });
       endpoint = launched.endpoint;
-      console.log(`launched ${endpoint} profile=${args.profile}`);
+      console.log(`launched ${endpoint} profile=${launched.profile ?? args.profile}`);
     } else {
       throw new Error("set VELORA_CDP or pass --launch");
     }
