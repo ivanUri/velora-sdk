@@ -22,6 +22,8 @@ export interface VeloraLaunchOptions extends BrowserConnectOptions {
   userDataDir?: string;
   /** Override Cookies.json path (--cookie-jar, deprecated; prefer profile dir). */
   cookieJar?: string;
+  /** Self-contained fingerprint bundle dir or fingerprint.json (`--profile-snapshot`). */
+  profileSnapshot?: string;
   /** CDP port (default: auto free port). */
   port?: number;
   /** Path to velora binary. */
@@ -227,6 +229,7 @@ export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<L
     args.push("--browser-profile-pool", options.profilePool.join(","));
   }
   if (options.userDataDir) args.push("--user-data-dir", options.userDataDir);
+  if (options.profileSnapshot) args.push("--profile-snapshot", options.profileSnapshot);
   if (options.cookieJar) args.push("--cookie-jar", options.cookieJar);
   if (options.logLevel) args.push("--log-level", options.logLevel);
 
