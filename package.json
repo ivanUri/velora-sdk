@@ -1,0 +1,28 @@
+{
+  "name": "@velora/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript CDP SDK for Velora — connect, launch, and agent APIs over WebSocket.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "velora-fetch": "dist/cli/fetch.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "example:crawl": "node examples/crawl-wikipedia.mjs --launch --limit 8 --concurrency 2",
+    "example:agent": "node examples/agent-semantic.mjs --launch"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
