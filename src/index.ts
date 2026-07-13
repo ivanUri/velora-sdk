@@ -104,3 +104,17 @@ export type {
   CreateProfileOptions,
   ProfileBundleResult,
 } from "./profile-bundle.js";
+export {
+  fetchRemoteProfile,
+  hydrateRemoteProfile,
+  flushRemoteSession,
+  cleanupHydratedProfile,
+} from "./profile-api.js";
+export type {
+  RemoteProfileRecord,
+  RemoteProfileUrls,
+  RemoteSessionBlob,
+  ProfileApiOptions,
+  HydrateRemoteProfileOptions,
+  HydratedRemoteProfile,
+} from "./profile-api.js";

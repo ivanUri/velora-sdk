@@ -91,6 +91,19 @@ On first launch, Velora creates `~/Library/Application Support/velora/<profile>/
 
 Resolution order for `--profile-snapshot`: explicit path → bundle → profile `snapshot/` → catalog.
 
+### SaaS / remote profile (control plane API)
+
+```ts
+await Browser.launch({
+  profileId: "prof_demo",
+  veloraApi: "http://127.0.0.1:3940",
+  apiKey: process.env.VELORA_API_KEY, // optional
+});
+```
+
+SDK fetches snapshot + session from the API, hydrates to a temp dir, launches velora, and flushes
+session back on `close()`. Use the sibling `velora-api` mock server for local dev.
+
 ### AI extraction (token-efficient)
 
 ```ts

@@ -6,6 +6,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Browser } from "./browser.js";
 import type { BrowserConnectOptions } from "./browser.js";
+import {
+  cleanupHydratedProfile,
+  flushRemoteSession,
+  hydrateRemoteProfile,
+  type HydratedRemoteProfile,
+} from "../profile-api.js";
 import { resolveProfileSnapshot } from "../profile.js";
 import { delay } from "../utils/timeout.js";
 import { ProtocolError } from "../cdp/errors.js";
@@ -29,6 +35,12 @@ export interface VeloraLaunchOptions extends BrowserConnectOptions {
   profileBundle?: string;
   /** Pinned catalog template ref, e.g. `chrome-local-huys-macbook-pro@1`. */
   templateRef?: string;
+  /** SaaS profile id — hydrate snapshot + session from control plane API. */
+  profileId?: string;
+  /** Control plane base URL when using `profileId`. */
+  veloraApi?: string;
+  /** Optional API key (`Authorization: Bearer`). */
+  apiKey?: string;
   /** CDP port (default: auto free port). */
   port?: number;
   /** Path to velora binary. */
@@ -52,6 +64,10 @@ export interface LaunchedVelora {
   /** Resolved `--profile-snapshot` directory passed to velora. */
   profileSnapshot?: string;
   templateRef?: string;
+  profileId?: string;
+  veloraApi?: string;
+  /** Temp hydration dir when launched via API (cleaned on close). */
+  hydratedWorkDir?: string;
   dataRoot: string;
   process: ChildProcess;
   close(): Promise<void>;
@@ -229,22 +245,45 @@ export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<L
   const { binary, dataRoot } = resolveLaunchTarget(options);
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? await getFreePort();
-  const profile = pickProfile(options);
-  const profileSnapshot = resolveProfileSnapshot({
-    dataRoot,
-    profile,
-    userDataDir: options.userDataDir,
-    profileSnapshot: options.profileSnapshot,
-    profileBundle: options.profileBundle,
-    templateRef: options.templateRef,
-  });
+
+  let hydrated: HydratedRemoteProfile | undefined;
+  let profile = pickProfile(options);
+  let userDataDir = options.userDataDir;
+  let profileSnapshot: string | undefined;
+
+  const veloraApi = options.veloraApi ?? process.env.VELORA_API_URL;
+  const profileId = options.profileId ?? process.env.VELORA_PROFILE_ID;
+  const apiKey = options.apiKey ?? process.env.VELORA_API_KEY;
+
+  if (profileId) {
+    if (!veloraApi) {
+      throw new ProtocolError("profileId requires veloraApi (or VELORA_API_URL)");
+    }
+    hydrated = await hydrateRemoteProfile({
+      veloraApi,
+      profileId,
+      apiKey,
+    });
+    profile = profileId;
+    userDataDir = hydrated.userDataDir;
+    profileSnapshot = hydrated.snapshotDir;
+  } else {
+    profileSnapshot = resolveProfileSnapshot({
+      dataRoot,
+      profile,
+      userDataDir,
+      profileSnapshot: options.profileSnapshot,
+      profileBundle: options.profileBundle,
+      templateRef: options.templateRef,
+    });
+  }
 
   const args = ["serve", "--host", host, "--port", String(port)];
   if (profile) args.push("--browser-profile", profile);
   if (options.profilePool?.length && !options.profile) {
     args.push("--browser-profile-pool", options.profilePool.join(","));
   }
-  if (options.userDataDir) args.push("--user-data-dir", options.userDataDir);
+  if (userDataDir) args.push("--user-data-dir", userDataDir);
   if (profileSnapshot) args.push("--profile-snapshot", profileSnapshot);
   if (options.cookieJar) args.push("--cookie-jar", options.cookieJar);
   if (options.logLevel) args.push("--log-level", options.logLevel);
@@ -273,12 +312,27 @@ export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<L
     port,
     profile,
     profileSnapshot,
-    templateRef: options.templateRef,
+    templateRef: options.templateRef ?? (hydrated
+      ? `${hydrated.template}@${hydrated.templateVersion}`
+      : undefined),
+    profileId: profileId ?? undefined,
+    veloraApi: veloraApi ?? undefined,
+    hydratedWorkDir: hydrated?.workDir,
     dataRoot,
     process: proc,
     async close() {
       await browser.close().catch(() => undefined);
       if (!proc.killed) proc.kill("SIGTERM");
+      if (hydrated && veloraApi) {
+        await flushRemoteSession({
+          veloraApi,
+          apiKey,
+          profileId: hydrated.profileId,
+          profileDir: hydrated.profileDir,
+          record: hydrated.record,
+        }).catch(() => undefined);
+        cleanupHydratedProfile(hydrated.workDir);
+      }
     },
   };
 }
