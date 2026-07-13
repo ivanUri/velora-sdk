@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Browser } from "./browser.js";
 import type { BrowserConnectOptions } from "./browser.js";
+import { resolveProfileSnapshot } from "../profile.js";
 import { delay } from "../utils/timeout.js";
 import { ProtocolError } from "../cdp/errors.js";
 
@@ -24,6 +25,10 @@ export interface VeloraLaunchOptions extends BrowserConnectOptions {
   cookieJar?: string;
   /** Self-contained fingerprint bundle dir or fingerprint.json (`--profile-snapshot`). */
   profileSnapshot?: string;
+  /** Portable `.velora-profile` bundle directory (uses `snapshot/` inside). */
+  profileBundle?: string;
+  /** Pinned catalog template ref, e.g. `chrome-local-huys-macbook-pro@1`. */
+  templateRef?: string;
   /** CDP port (default: auto free port). */
   port?: number;
   /** Path to velora binary. */
@@ -44,6 +49,9 @@ export interface LaunchedVelora {
   endpoint: string;
   port: number;
   profile?: string;
+  /** Resolved `--profile-snapshot` directory passed to velora. */
+  profileSnapshot?: string;
+  templateRef?: string;
   dataRoot: string;
   process: ChildProcess;
   close(): Promise<void>;
@@ -222,6 +230,14 @@ export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<L
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? await getFreePort();
   const profile = pickProfile(options);
+  const profileSnapshot = resolveProfileSnapshot({
+    dataRoot,
+    profile,
+    userDataDir: options.userDataDir,
+    profileSnapshot: options.profileSnapshot,
+    profileBundle: options.profileBundle,
+    templateRef: options.templateRef,
+  });
 
   const args = ["serve", "--host", host, "--port", String(port)];
   if (profile) args.push("--browser-profile", profile);
@@ -229,7 +245,7 @@ export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<L
     args.push("--browser-profile-pool", options.profilePool.join(","));
   }
   if (options.userDataDir) args.push("--user-data-dir", options.userDataDir);
-  if (options.profileSnapshot) args.push("--profile-snapshot", options.profileSnapshot);
+  if (profileSnapshot) args.push("--profile-snapshot", profileSnapshot);
   if (options.cookieJar) args.push("--cookie-jar", options.cookieJar);
   if (options.logLevel) args.push("--log-level", options.logLevel);
 
@@ -256,6 +272,8 @@ export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<L
     endpoint,
     port,
     profile,
+    profileSnapshot,
+    templateRef: options.templateRef,
     dataRoot,
     process: proc,
     async close() {

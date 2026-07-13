@@ -22,6 +22,9 @@ export interface FetchOptions {
   profile?: string;
   profilePool?: string[];
   userDataDir?: string;
+  profileSnapshot?: string;
+  profileBundle?: string;
+  templateRef?: string;
   cookieJar?: string;
   binary?: string;
   dataRoot?: string;
@@ -52,6 +55,9 @@ export async function fetch(url: string, options: FetchOptions = {}): Promise<Fe
     profile: options.profile,
     profilePool: options.profilePool,
     userDataDir: options.userDataDir,
+    profileSnapshot: options.profileSnapshot,
+    profileBundle: options.profileBundle,
+    templateRef: options.templateRef,
     cookieJar: options.cookieJar,
     binary: options.binary,
     dataRoot: options.dataRoot ?? options.repoRoot,

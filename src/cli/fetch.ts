@@ -12,6 +12,9 @@ function parseArgs(argv: string[]) {
   let logger = false;
   let profile: string | undefined;
   let userDataDir: string | undefined;
+  let profileSnapshot: string | undefined;
+  let profileBundle: string | undefined;
+  let templateRef: string | undefined;
   let dataRoot: string | undefined;
   let logLevel: string | undefined;
 
@@ -33,6 +36,10 @@ function parseArgs(argv: string[]) {
       case "--profile":
       case "--browser-profile": profile = next(); break;
       case "--user-data-dir": userDataDir = next(); break;
+      case "--profile-snapshot": profileSnapshot = next(); break;
+      case "--profile-bundle": profileBundle = next(); break;
+      case "--template":
+      case "--template-ref": templateRef = next(); break;
       case "--data-root":
       case "--velora-root": dataRoot = next(); break;
       case "--log-level": logLevel = next(); break;
@@ -57,7 +64,10 @@ function parseArgs(argv: string[]) {
     }
   }
   if (!url) usage(1);
-  return { url, format, launch, output, endpoint, waitUntil, timeout, logger, profile, userDataDir, dataRoot, logLevel };
+  return {
+    url, format, launch, output, endpoint, waitUntil, timeout, logger,
+    profile, userDataDir, profileSnapshot, profileBundle, templateRef, dataRoot, logLevel,
+  };
 }
 
 function usage(exitCode: number): never {
@@ -66,6 +76,7 @@ function usage(exitCode: number): never {
   velora-fetch https://example.com --launch -o page.html
   velora-fetch https://example.com --launch --md -o page.md
   velora-fetch https://example.com --launch --profile chrome-local-huys-macbook-pro
+  velora-fetch https://example.com --launch --template chrome-local-huys-macbook-pro@1
 `);
   process.exit(exitCode);
 }
@@ -82,6 +93,9 @@ async function main(): Promise<void> {
     output: args.output,
     profile: args.profile,
     userDataDir: args.userDataDir,
+    profileSnapshot: args.profileSnapshot,
+    profileBundle: args.profileBundle,
+    templateRef: args.templateRef,
     dataRoot: args.dataRoot,
     logLevel: args.logLevel,
   });

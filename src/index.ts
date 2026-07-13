@@ -75,3 +75,32 @@ export type { LoggerOption, LoggerSink, LogEntry } from "./utils/logger.js";
 export { fetch } from "./fetch.js";
 export type { FetchFormat, FetchOptions, FetchResult } from "./fetch.js";
 export { defaultUserDataDir, profileCookiesPath } from "./profile-paths.js";
+export {
+  parseTemplateRef,
+  formatTemplateRef,
+  catalogDir,
+  catalogSnapshotDir,
+  catalogFingerprintPath,
+  profileDir,
+  profilePreferencesPath,
+  profileSnapshotDir,
+  bundleDir,
+  bundleSnapshotDir,
+  readPreferences,
+  resolveProfileSnapshot,
+} from "./profile.js";
+export type { TemplateRef, PreferencesV2, ResolveSnapshotOptions } from "./profile.js";
+export {
+  publishTemplate,
+  exportProfile,
+  importProfile,
+  createProfile,
+} from "./profile-bundle.js";
+export type {
+  ProfileBundleCommonOptions,
+  PublishTemplateOptions,
+  ExportProfileOptions,
+  ImportProfileOptions,
+  CreateProfileOptions,
+  ProfileBundleResult,
+} from "./profile-bundle.js";

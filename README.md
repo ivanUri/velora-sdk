@@ -45,26 +45,51 @@ Velora adds an **LP CDP domain** and **agent-oriented APIs** for AI automation a
 ### Launch with antidetect profile
 
 Velora uses a Chrome-style **user-data-dir** for session state (cookies, localStorage, cache).
-Fingerprint **templates** stay read-only under the engine install (`browser/templates/`).
+Fingerprint data comes from a **versioned catalog** (`browser/catalog/<template>@<version>/`) or a
+**portable bundle** (`.velora-profile/`).
 
 ```ts
-import { Browser, defaultUserDataDir, profileCookiesPath } from "@velora/sdk";
+import {
+  Browser,
+  defaultUserDataDir,
+  profileCookiesPath,
+  parseTemplateRef,
+  catalogSnapshotDir,
+  publishTemplate,
+  exportProfile,
+  importProfile,
+} from "@velora/sdk";
 
+// Pin catalog template version (no local profile folder required)
 const launched = await Browser.launch({
-  profile: "chrome-local-huys-macbook-pro", // --browser-profile folder name
-  userDataDir: defaultUserDataDir(),        // optional; macOS default shown
+  profile: "chrome-local-huys-macbook-pro",
+  templateRef: "chrome-local-huys-macbook-pro@1",
+  dataRoot: "/path/to/velora-engine",
 });
+
+// Or launch from a portable bundle
+await Browser.launch({
+  profile: "my-tenant-profile",
+  profileBundle: "/path/to/my-tenant-profile.velora-profile",
+});
+
 const page = await launched.browser.newPage();
 // Cookies persist to profileCookiesPath(defaultUserDataDir(), launched.profile!)
-// ...
 await launched.close();
 ```
 
-On first launch, Velora creates `~/Library/Application Support/velora/<profile>/` with
-`Preferences.json` pointing at the fingerprint template (e.g. `chrome-local-huys-macbook-pro`).
+**Profile bundle CLI** (wraps `velora profile` / `scripts/profile-bundle.mjs`):
 
-Templates bundle UA, Sec-CH-UA, canvas/audio/WebGL probes, fonts, and maths baselines —
-see `browser/templates/` in the Velora engine repo.
+```ts
+await publishTemplate({ template: "chrome-local-huys-macbook-pro@1", dataRoot: "..." });
+await exportProfile({ name: "my-profile", dataRoot: "..." });
+await importProfile({ name: "restored", from: "/path/to/bundle.velora-profile", dataRoot: "..." });
+```
+
+On first launch, Velora creates `~/Library/Application Support/velora/<profile>/` with
+`Preferences.json` v2 (`template`, `template_version`, optional embedded `snapshot/`).
+
+Resolution order for `--profile-snapshot`: explicit path → bundle → profile `snapshot/` → catalog.
 
 ### AI extraction (token-efficient)
 
@@ -180,7 +205,10 @@ await page.evaluate("prompt('Name?')");
 
 | API | Description |
 |-----|-------------|
-| `Browser.launch()` | Spawn Velora with `--browser-profile`, `--user-data-dir`, `--cookie-jar` |
+| `Browser.launch()` | Spawn Velora with profile, catalog snapshot, or bundle |
+| `parseTemplateRef()` / `formatTemplateRef()` | Parse `id@version` template refs |
+| `catalogSnapshotDir()` / `resolveProfileSnapshot()` | Catalog and snapshot path helpers |
+| `publishTemplate()` / `exportProfile()` / `importProfile()` | Profile bundle operations |
 | `defaultUserDataDir()` | OS default user-data-dir path |
 | `profileCookiesPath()` | `Cookies.json` path for a named profile |
 | `fetch()` | Programmatic `velora-fetch` (html / md / json) |

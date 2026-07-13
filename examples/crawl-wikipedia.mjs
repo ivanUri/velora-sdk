@@ -36,6 +36,7 @@ function parseArgs(argv) {
   const out = {
     launch: false,
     profile: process.env.VELORA_PROFILE ?? "chrome-local-huys-macbook-pro",
+    templateRef: process.env.VELORA_TEMPLATE ?? "chrome-local-huys-macbook-pro@1",
     endpoint: process.env.VELORA_CDP ?? null,
     limit: 8,
     concurrency: 2,
