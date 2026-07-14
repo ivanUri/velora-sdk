@@ -10,6 +10,8 @@
   },
   "files": [
     "dist",
+    "src",
+    "tsconfig.json",
     "README.md"
   ],
   "repository": {
