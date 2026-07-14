@@ -32,6 +32,7 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "npm run build",
     "example:crawl": "node examples/crawl-wikipedia.mjs --launch --limit 8 --concurrency 2",
