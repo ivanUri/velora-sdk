@@ -137,7 +137,6 @@ export class Page {
 
     await this.session.send("Page.enable").catch(() => undefined);
     await this.session.send("Runtime.enable").catch(() => undefined);
-    await this.network.enable();
 
     const tree = await this.session.send<any>("Page.getFrameTree").catch(() => undefined);
     this.mainFrameId = tree?.frameTree?.frame?.id ?? this.mainFrameId;

@@ -28,6 +28,8 @@ export class NetworkTracker {
   private cleanup: Array<() => void> = [];
   private readonly listeners = new Set<IdleListener>();
   private maxRequests = DEFAULT_MAX_REQUESTS;
+  private enabled = false;
+  private enabling?: Promise<void>;
 
   constructor(private readonly session: CDPSession) {}
 
@@ -40,7 +42,25 @@ export class NetworkTracker {
     for (const listener of this.listeners) listener();
   }
 
+  /** Enable CDP Network domain and start tracking requests (idempotent). */
   async enable(): Promise<void> {
+    return this.ensureEnabled();
+  }
+
+  /** Lazily enable Network — avoids velora SIGTRAP on simple multi-page goto. */
+  async ensureEnabled(): Promise<void> {
+    if (this.enabled) return;
+    if (this.enabling) return this.enabling;
+    this.enabling = this.doEnable();
+    try {
+      await this.enabling;
+    } finally {
+      this.enabling = undefined;
+    }
+  }
+
+  private async doEnable(): Promise<void> {
+    if (this.enabled) return;
     this.cleanup.push(
       this.session.on<any>("Network.requestWillBeSent", (event) => this.onRequest(event)),
       this.session.on<any>("Network.responseReceived", (event) => this.onResponse(event)),
@@ -48,6 +68,7 @@ export class NetworkTracker {
       this.session.on<any>("Network.loadingFailed", (event) => this.onFailed(event)),
     );
     await this.session.send("Network.enable").catch(() => undefined);
+    this.enabled = true;
   }
 
   dispose(): void {
@@ -63,6 +84,10 @@ export class NetworkTracker {
   }
 
   waitForIdle(options: { idleMs?: number; timeout?: number } = {}): Promise<void> {
+    return this.ensureEnabled().then(() => this.waitForIdleAfterEnabled(options));
+  }
+
+  private waitForIdleAfterEnabled(options: { idleMs?: number; timeout?: number } = {}): Promise<void> {
     const idleMs = options.idleMs ?? 500;
     const promise = new Promise<void>((resolve) => {
       let timer: NodeJS.Timeout | undefined;

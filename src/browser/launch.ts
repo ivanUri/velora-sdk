@@ -195,7 +195,11 @@ export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<L
   });
 
   await waitForCdp(endpoint, proc);
-  const browser = await Browser.connect(endpoint, options);
+  // Launched browsers create targets explicitly; auto-attach is unstable on velora 1.0.1.
+  const browser = await Browser.connect(endpoint, {
+    ...options,
+    enableTargetTracking: options.enableTargetTracking ?? false,
+  });
 
   return {
     browser,

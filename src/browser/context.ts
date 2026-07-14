@@ -34,6 +34,7 @@ export class BrowserContext {
 
   async cookies(urls?: string[]): Promise<CookieState[]> {
     const page = await this.ensurePage();
+    await page.network.ensureEnabled();
     const result = await page.session.send<{ cookies: CookieState[] }>(
       urls?.length ? "Network.getCookies" : "Network.getAllCookies",
       urls?.length ? { urls } : undefined,
@@ -44,11 +45,13 @@ export class BrowserContext {
   async addCookies(cookies: CookieState[]): Promise<void> {
     if (!cookies.length) return;
     const page = await this.ensurePage();
+    await page.network.ensureEnabled();
     await page.session.send("Network.setCookies", { cookies });
   }
 
   async clearCookies(): Promise<void> {
     const page = await this.ensurePage();
+    await page.network.ensureEnabled();
     const all = await page.session.send<{ cookies: CookieState[] }>("Network.getAllCookies");
     for (const cookie of all.cookies ?? []) {
       await page.session.send("Network.deleteCookies", {
