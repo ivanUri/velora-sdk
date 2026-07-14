@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Production-style Wikipedia crawl using @velora/sdk createCrawlWorker.
+ * Production-style Wikipedia crawl using velora-sdk createCrawlWorker.
  *
  * Usage:
  *   npm run example:crawl

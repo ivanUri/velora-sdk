@@ -1,6 +1,6 @@
 {
-  "name": "@velora/sdk",
-  "version": "0.1.0",
+  "name": "velora-sdk",
+  "version": "0.1.1",
   "description": "TypeScript CDP SDK for Velora — connect, launch, and agent APIs over WebSocket.",
   "type": "module",
   "main": "dist/index.js",

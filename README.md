@@ -1,11 +1,11 @@
-# Velora SDK (`@velora/sdk`)
+# Velora SDK (`velora-sdk`)
 
 TypeScript CDP client for the [Velora](https://github.com/ivanUri/velora) engine. Standalone repo — sibling of the engine checkout:
 
 ```
 Desktop/
   velora/       # Zig engine (zig build)
-  velora-sdk/   # this repo (@velora/sdk)
+  velora-sdk/   # this repo (npm: velora-sdk)
 ```
 
 `Browser.launch()` with no options uses **Homebrew** when installed (`brew tap ivanUri/tap && brew install velora`).
@@ -18,7 +18,7 @@ TypeScript-first; talks directly to Chrome DevTools Protocol over WebSocket. No 
 The public API is modeled after [Playwright](https://playwright.dev/docs/api/class-playwright) so automation scripts port with minimal changes.
 
 ```ts
-import { Browser } from "@velora/sdk";
+import { Browser } from "velora-sdk";
 
 const browser = await Browser.connect("http://127.0.0.1:9222");
 const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -69,7 +69,7 @@ import {
   publishTemplate,
   exportProfile,
   importProfile,
-} from "@velora/sdk";
+} from "velora-sdk";
 
 // Pin catalog template version (no local profile folder required)
 const launched = await Browser.launch({
@@ -150,7 +150,7 @@ Includes TTFX probe, block detection (`/sorry`, captcha), and `pathHint` diagnos
 ### Crawl extract + session persistence
 
 ```ts
-import { createCrawlWorker, captureSessionState, restoreSessionState } from "@velora/sdk";
+import { createCrawlWorker, captureSessionState, restoreSessionState } from "velora-sdk";
 
 const worker = await createCrawlWorker("http://127.0.0.1:9222");
 const result = await worker.crawl({ url: "https://en.wikipedia.org/wiki/Earth" });
