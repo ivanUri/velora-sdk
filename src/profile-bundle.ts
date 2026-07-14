@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { ProtocolError } from "./cdp/errors.js";
 import { defaultUserDataDir } from "./profile-paths.js";
 import { formatTemplateRef, parseTemplateRef } from "./profile.js";
+import { resolveVeloraInstall } from "./velora-install.js";
 
 export interface ProfileBundleCommonOptions {
   /** Engine install root (VELORA_ROOT). */
@@ -44,19 +45,11 @@ export interface ProfileBundleResult {
   exitCode: number;
 }
 
-function resolveDataRoot(options: ProfileBundleCommonOptions): string {
-  if (options.dataRoot) return options.dataRoot;
-  if (process.env.VELORA_DATA) return process.env.VELORA_DATA;
-  if (process.env.VELORA_ROOT) return process.env.VELORA_ROOT;
-  throw new ProtocolError("dataRoot required (set dataRoot or VELORA_ROOT)");
-}
-
-function resolveBinary(options: ProfileBundleCommonOptions, dataRoot: string): string {
-  if (options.binary) return options.binary;
-  if (process.env.VELORA_BIN) return process.env.VELORA_BIN;
-  const dev = join(dataRoot, "zig-out/bin/velora");
-  if (existsSync(dev)) return dev;
-  throw new ProtocolError("Velora binary not found — pass binary or set VELORA_BIN");
+function resolveInstall(options: ProfileBundleCommonOptions) {
+  return resolveVeloraInstall({
+    binary: options.binary,
+    dataRoot: options.dataRoot,
+  });
 }
 
 function bundleScriptPath(dataRoot: string): string {
@@ -102,8 +95,7 @@ async function runVeloraProfile(
   subArgs: string[],
   options: ProfileBundleCommonOptions,
 ): Promise<ProfileBundleResult> {
-  const dataRoot = resolveDataRoot(options);
-  const binary = resolveBinary(options, dataRoot);
+  const { binary, dataRoot } = resolveInstall(options);
   const userDataDir = options.userDataDir ?? defaultUserDataDir();
   const args = ["profile", ...subArgs, "--user-data-dir", userDataDir];
   return runProcess(binary, args, dataRoot);
@@ -113,7 +105,7 @@ async function runBundleScript(
   subArgs: string[],
   options: ProfileBundleCommonOptions,
 ): Promise<ProfileBundleResult> {
-  const dataRoot = resolveDataRoot(options);
+  const { dataRoot } = resolveInstall(options);
   const script = bundleScriptPath(dataRoot);
   const userDataDir = options.userDataDir ?? defaultUserDataDir();
   const args = [

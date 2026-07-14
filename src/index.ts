@@ -12,6 +12,8 @@ export { Browser } from "./browser/browser.js";
 export type { BrowserConnectOptions } from "./browser/browser.js";
 export { launchVelora } from "./browser/launch.js";
 export type { VeloraLaunchOptions, LaunchedVelora } from "./browser/launch.js";
+export { resolveVeloraInstall, defaultVeloraDataRoot } from "./velora-install.js";
+export type { VeloraInstall, VeloraInstallSource, ResolveVeloraInstallOptions } from "./velora-install.js";
 export { BrowserContext } from "./browser/context.js";
 export type { BrowserContextOptions } from "./browser/context.js";
 export { Page } from "./browser/page.js";

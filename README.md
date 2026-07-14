@@ -8,8 +8,10 @@ Desktop/
   velora-sdk/   # this repo (@velora/sdk)
 ```
 
-Set `VELORA_ROOT` / `VELORA_DATA` to the engine install path (templates in `browser/templates/`).
-`Browser.launch()` resolves the `velora` binary from Homebrew, `$VELORA_BIN`, or `~/Desktop/velora/zig-out/bin/velora`.
+`Browser.launch()` with no options uses **Homebrew** when installed (`brew tap ivanUri/tap && brew install velora`).
+
+Engine data: `$(brew --prefix velora)/share/velora` (`browser/velora.json`, `templates/`, `catalog/`).
+Override with `VELORA_ROOT`, `dataRoot`, or `binary` for a git checkout dev build.
 
 TypeScript-first; talks directly to Chrome DevTools Protocol over WebSocket. No Playwright or Puppeteer internals.
 
@@ -41,6 +43,15 @@ await browser.close();
 ## Velora-only features (not in Playwright)
 
 Velora adds an **LP CDP domain** and **agent-oriented APIs** for AI automation and high-density crawling.
+
+### Launch (default)
+
+```ts
+const launched = await Browser.launch();
+// Homebrew binary + browser/velora.json
+console.log(launched.installSource); // "homebrew"
+await launched.close();
+```
 
 ### Launch with antidetect profile
 

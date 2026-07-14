@@ -1,9 +1,7 @@
-import { execSync, spawn, type ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:net";
 import { existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { Browser } from "./browser.js";
 import type { BrowserConnectOptions } from "./browser.js";
 import {
@@ -13,12 +11,9 @@ import {
   type HydratedRemoteProfile,
 } from "../profile-api.js";
 import { resolveProfileSnapshot } from "../profile.js";
+import { resolveVeloraInstall } from "../velora-install.js";
 import { delay } from "../utils/timeout.js";
 import { ProtocolError } from "../cdp/errors.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PACKAGE_ROOT = resolve(__dirname, "../..");
-const DEFAULT_DATA_ROOT = resolve(PACKAGE_ROOT, "../velora");
 
 export interface VeloraLaunchOptions extends BrowserConnectOptions {
   /** Profile folder name inside user-data-dir (maps to --browser-profile). */
@@ -46,7 +41,7 @@ export interface VeloraLaunchOptions extends BrowserConnectOptions {
   /** Path to velora binary. */
   binary?: string;
   /**
-   * Engine install root (templates in browser/templates/).
+   * Engine install root (`share/velora` from Homebrew, or git checkout).
    * Sets VELORA_ROOT / VELORA_DATA for the child process.
    */
   dataRoot?: string;
@@ -68,127 +63,11 @@ export interface LaunchedVelora {
   veloraApi?: string;
   /** Temp hydration dir when launched via API (cleaned on close). */
   hydratedWorkDir?: string;
+  binary: string;
   dataRoot: string;
+  installSource: string;
   process: ChildProcess;
   close(): Promise<void>;
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-
-function tryWhich(command: string): string | undefined {
-  try {
-    const out = execSync(`command -v ${shellQuote(command)}`, {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    return out || undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function tryBrewPrefix(formula = "velora"): string | undefined {
-  try {
-    const out = execSync(`brew --prefix ${shellQuote(formula)} 2>/dev/null`, {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    return out || undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/** TODO: remove when Homebrew release ships embedded snapshot + full browser data. */
-function tryDesktopDevInstall(): { binary: string; dataRoot: string } | undefined {
-  const dataRoot = join(homedir(), "Desktop", "velora");
-  const binary = join(dataRoot, "zig-out/bin/velora");
-  if (!existsSync(binary) || !existsSync(join(dataRoot, "browser"))) return undefined;
-  return { binary, dataRoot };
-}
-
-function inferDataRoot(binary: string): string | undefined {
-  if (binary.endsWith("/zig-out/bin/velora") || binary.includes("/zig-out/bin/velora")) {
-    const root = resolve(dirname(binary), "../..");
-    if (existsSync(join(root, "browser"))) return root;
-  }
-
-  const binDir = dirname(binary);
-  const candidates = [
-    resolve(binDir, "../share/velora"),
-    resolve(binDir, "../../share/velora"),
-  ];
-  for (const candidate of candidates) {
-    if (existsSync(join(candidate, "browser"))) return candidate;
-  }
-
-  const prefix = tryBrewPrefix("velora");
-  if (prefix) {
-    const candidate = join(prefix, "share/velora");
-    if (existsSync(join(candidate, "browser"))) return candidate;
-  }
-  return undefined;
-}
-
-function resolveDataRoot(options: VeloraLaunchOptions): string {
-  if (options.dataRoot) return options.dataRoot;
-  if (options.repoRoot) return options.repoRoot;
-  if (process.env.VELORA_DATA) return process.env.VELORA_DATA;
-  if (process.env.VELORA_ROOT) return process.env.VELORA_ROOT;
-  return DEFAULT_DATA_ROOT;
-}
-
-function resolveLaunchTarget(options: VeloraLaunchOptions): { binary: string; dataRoot: string } {
-  const explicitDataRoot = options.dataRoot ?? options.repoRoot
-    ?? process.env.VELORA_DATA
-    ?? process.env.VELORA_ROOT
-    ?? undefined;
-
-  if (options.binary) {
-    const dataRoot = explicitDataRoot ?? inferDataRoot(options.binary);
-    if (!dataRoot) throw new ProtocolError(`Velora data not found for ${options.binary}`);
-    return { binary: options.binary, dataRoot };
-  }
-
-  if (process.env.VELORA_BIN) {
-    const dataRoot = explicitDataRoot ?? inferDataRoot(process.env.VELORA_BIN);
-    if (!dataRoot) throw new ProtocolError("Velora data not found for VELORA_BIN");
-    return { binary: process.env.VELORA_BIN, dataRoot };
-  }
-
-  const desktop = tryDesktopDevInstall();
-  if (desktop) {
-    return {
-      binary: desktop.binary,
-      dataRoot: explicitDataRoot ?? desktop.dataRoot,
-    };
-  }
-
-  const devBinary = resolve(resolveDataRoot(options), "zig-out/bin/velora");
-  if (existsSync(devBinary)) {
-    return {
-      binary: devBinary,
-      dataRoot: explicitDataRoot ?? resolveDataRoot(options),
-    };
-  }
-
-  const binary = tryWhich("velora");
-  if (!binary) {
-    throw new ProtocolError(
-      "Velora not found. Install: brew tap ivanUri/tap && brew install velora",
-    );
-  }
-
-  const dataRoot = explicitDataRoot ?? inferDataRoot(binary);
-  if (!dataRoot) {
-    throw new ProtocolError(
-      `Velora install incomplete for ${binary}. Try: brew upgrade velora`,
-    );
-  }
-
-  return { binary, dataRoot };
 }
 
 function pickProfile(options: VeloraLaunchOptions): string | undefined {
@@ -242,7 +121,8 @@ async function waitForCdp(
 }
 
 export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<LaunchedVelora> {
-  const { binary, dataRoot } = resolveLaunchTarget(options);
+  const install = resolveVeloraInstall(options);
+  const { binary, dataRoot } = install;
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? await getFreePort();
 
@@ -329,7 +209,9 @@ export async function launchVelora(options: VeloraLaunchOptions = {}): Promise<L
     profileId: profileId ?? undefined,
     veloraApi: veloraApi ?? undefined,
     hydratedWorkDir: hydrated?.workDir,
+    binary,
     dataRoot,
+    installSource: install.source,
     process: proc,
     async close() {
       await browser.close().catch(() => undefined);

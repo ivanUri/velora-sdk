@@ -25,8 +25,8 @@ export class Browser {
 
   /**
    * Spawn `velora serve` and connect over CDP.
-   * Resolves binary from Homebrew, `$VELORA_BIN`, or Desktop/velora dev build.
-   * Pass `profile` for `--browser-profile` (Chrome-style user-data-dir folder).
+   * Default: Homebrew `velora` (`brew install velora`) + `share/velora/browser/velora.json`.
+   * Antidetect: pass `profileId` + `veloraApi`. Override with `binary` / `dataRoot`.
    */
   static async launch(options: VeloraLaunchOptions = {}): Promise<LaunchedVelora> {
     return launchVelora(options);

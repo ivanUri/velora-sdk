@@ -8,15 +8,7 @@
  *   node examples/crawl-wikipedia.mjs --launch --profile chrome-local-huys-macbook-pro
  */
 
-import { existsSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-import { Browser, createCrawlWorker } from "../dist/index.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PACKAGE_ROOT = resolve(__dirname, "..");
-const VELORA_ROOT = process.env.VELORA_ROOT ?? resolve(PACKAGE_ROOT, "../velora");
+import { Browser, createCrawlWorker, defaultVeloraDataRoot } from "../dist/index.js";
 
 const TTFX = `(() => {
   const el = document.querySelector("#firstHeading") || document.querySelector("h1");
@@ -103,17 +95,15 @@ async function main() {
 
   if (!endpoint) {
     if (args.launch) {
-      if (!existsSync(resolve(VELORA_ROOT, "zig-out/bin/velora"))) {
-        throw new Error(`run zig build in Velora engine first (${VELORA_ROOT})`);
-      }
       launched = await Browser.launch({
         profile: args.profile,
-        dataRoot: VELORA_ROOT,
-        binary: resolve(VELORA_ROOT, "zig-out/bin/velora"),
+        templateRef: args.templateRef,
         logLevel: "warn",
       });
       endpoint = launched.endpoint;
-      console.log(`launched ${endpoint} profile=${launched.profile ?? args.profile}`);
+      console.log(
+        `launched ${endpoint} source=${launched.installSource} data=${launched.dataRoot}`,
+      );
     } else {
       throw new Error("set VELORA_CDP or pass --launch");
     }
